@@ -31,6 +31,13 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+
+  // Handle server-side rendering issues
+  compiler: {
+    styledComponents: true,
+  },
+  reactStrictMode: true,
+  swcMinify: true,
 };
 
 export default nextConfig;

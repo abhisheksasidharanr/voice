@@ -4,10 +4,14 @@ import localFont from "next/font/local";
 import { DeepgramContextProvider } from "./context/DeepgramContextProvider";
 import { MicrophoneContextProvider } from "./context/MicrophoneContextProvider";
 import { VoiceBotProvider } from "./context/VoiceBotContextProvider";
-import AnimatedBackground from "./components/AnimatedBackground";
+import dynamic from 'next/dynamic';
 
 import "./globals.css";
 import { sharedOpenGraphMetadata } from "./lib/constants";
+
+const AnimatedBackground = dynamic(() => import('./components/AnimatedBackground'), {
+  ssr: false
+});
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,19 +42,19 @@ export const metadata = {
   },
 };
 
-const fonts = [inter, fira, favorit].map((font) => font.variable).join(" ");
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${fonts} font-inter`}>
+    <html lang="en" className={`${inter.variable} ${fira.variable} ${favorit.variable}`}>
       <body>
-        <AnimatedBackground>
-          <VoiceBotProvider>
-            <MicrophoneContextProvider>
-              <DeepgramContextProvider>{children}</DeepgramContextProvider>
-            </MicrophoneContextProvider>
-          </VoiceBotProvider>
-        </AnimatedBackground>
+        <DeepgramContextProvider>
+          <MicrophoneContextProvider>
+            <VoiceBotProvider>
+              <AnimatedBackground>
+                {children}
+              </AnimatedBackground>
+            </VoiceBotProvider>
+          </MicrophoneContextProvider>
+        </DeepgramContextProvider>
       </body>
     </html>
   );
