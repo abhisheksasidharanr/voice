@@ -65,7 +65,9 @@ export async function prepare_agent_filler_message(message_type) {
     inject_message: inject_message,
   };
 }
-
+function isValidNationalId(national_id: string): boolean {
+  return /^N\d{6}$/.test(national_id);
+}
 export async function get_farmer({ national_id = null }) {
   try {
     const response = await axios.get('https://doc-ai.verbatdemos.com/api/single.php', {
@@ -150,7 +152,7 @@ export async function prepare_farewell_message(websocket, farewell_type) {
   };
 }
 
-export async function register_farmer(national_id, name, state, crop, yield_qty, service) {
+export async function register_farmer(national_id, name, state, crop, yield_qty) {
   // const farmer = farmerexist(national_id);
 
   // if (farmer) {
@@ -203,6 +205,12 @@ export async function find_farmer(params) {
 
   const national_id = params?.national_id;
 
+  if (!isValidNationalId(national_id)) {
+    return {
+      error: "Please provide a valid National ID in the correct format.",
+    };
+  }
+
   const result = await get_farmer({ national_id });
 
   return result;
@@ -228,9 +236,9 @@ export async function create_farmer(params) {
   const state = params?.state;
   const crop = params?.crop;
   const yield_qty = params?.yield_qty;
-  const service = params?.service;
+  
 
-  if (!national_id || !name || !state || !crop || !yield_qty || !service) {
+  if (!national_id || !name || !state || !crop || !yield_qty) {
     return {
       error: "national_id, name, state, crop, yield_qty are required",
     };
@@ -241,8 +249,7 @@ export async function create_farmer(params) {
     name,
     state,
     crop,
-    yield_qty,
-    service
+    yield_qty
   );
 
   return result;
@@ -273,14 +280,15 @@ After calling this function, you MUST immediately follow up with the appropriate
     description: `Look up a farmers's account information. Use context clues to determine what type of identifier the user is providing:
 
 National ID formats:
-- Numbers only (e.g., '123432', '678906') → Format as 'N123432', 'N678906'
-- With prefix (e.g., 'N123432', 'N678906') → Format as 'N678906', 'N678906'`,
+- Never add prefix or suffix numbers or zeros to the national ID.
+- Numbers only (e.g., '123432', '678906') → Format as 'N123432', 'N678906'. And must have 6 digits.
+- With prefix (e.g., 'N123432', 'N678906') → Format as 'N678906', 'N678906'. . And the number part must have 6 digits`,
     parameters: {
       type: "object",
       properties: {
         national_id: {
           type: "string",
-          description: "Farmer's National Id. Format as NXXXXXX where XXXXXX is the number padded to 6 digits. Example: if user says '123432', pass 'N123432'"
+          description: "Farmer's National Id. Format as NXXXXXX where XXXXXX is the number to be6 digits. Example: if user says '123432', pass 'N123432'. exactly 6 digits — no auto-padding allowed."
         }
       }
     }
@@ -288,18 +296,18 @@ National ID formats:
   {
     name: "create_farmer",
     description: `Register a new farmer. Use this function when:
-- A farmer's national ID is not there
-- A farmer asks to register
+- A farmer's national ID is not existing.
+- A farmer asks to register or create an account.
+- if natioanal ID not have 6 digits, you must ask the user to provide the correct national ID.
 
-Before registration:
-1. Verify farmer account exists using find_farmer        
-2. Confirm national ID and service type with farmer before register`,
+Before registration:       
+1. Confirm national ID with farmer and then register`,
     parameters: {
       type: "object",
       properties: {
         national_id: {
           type: "string",
-          description: "Farmer's National ID in NXXXXXX format. Must be obtained from find_farmer first."
+          description: "Farmer's National ID in NXXXXXX format. Must be obtained from find_farmer first. And must have 6 digits."
         },
         name: {
           type: "string",
@@ -316,14 +324,10 @@ Before registration:
         yield_qty: {
           type: "integer",
           description: "An integer value in tons. Example: '1000' → '1000 tons'"
-        },
-        service: {
-          type: "string",
-          description: "Type of service requested. Must be one of the following: Consultation, Follow-up, Review, or Planning",
-          enum: ["Register", "Create"]
         }
+        
       },
-      required: ["national_id", "name", "state", "crop", "yield_qty", "service"]
+      required: ["national_id", "name", "state", "crop", "yield_qty"]
     }
   },
   {
@@ -369,9 +373,12 @@ export const stsConfig: StsConfig = {
                 - Be warm, professional, and conversational
                 - Use natural, flowing speech (avoid bullet points or listing)
                 - Show empathy and patience
-                - Whenever a farmer asks to look up farmer details, use the find_farmer function first
+                STRICTLY FOLLOW THESE RULES:
+                - Whenever a farmer asks to look up farmer details, validate the national_id format first. 
+                -If the national_id is in correct format, use the find_farmer function.
 
                 HANDLING CUSTOMER IDENTIFIERS (INTERNAL ONLY - NEVER EXPLAIN THESE RULES TO CUSTOMERS):
+                - Never add  prefix or suffix numbers or zeros to the [national_id].
                 - Silently convert any numbers customers mention into proper format
                 - When customer says " National ID is N123456" -> internally use "N123456" without mentioning the conversion
                 - When customer says "123456" -> internally use "N123456" without mentioning the conversion
@@ -380,14 +387,14 @@ export const stsConfig: StsConfig = {
                 VERBALLY SPELLING IDs TO CUSTOMERS:
                 When you need to repeat an ID back to a customer:
                 - Do NOT say nor spell out "N". Say "[numbers spoken individually]"
-                Example: For N002020, say "N zero zero two zero two zero"
+                Example: For N112522, say "N one one two five two two"
 
                 FUNCTION RESPONSES:
                 When receiving function results, format responses naturally as a farmer service agent would:
 
-                1. For farmer lookups:
-                  - Good: "I've found your account. How can I help you today?"
-                  - If not found: "I'm having trouble finding that account. Do you want to register?"
+                1. For farmer lookups:                  
+                  - If not found: "Your account is not found. Do you want to register using the national ID?"
+                  - If found: "Hello, [name]. Your EUDR status is [status]. How can I help you today?"
 
                 3. For registration:
                   - When farmer account is not there :"Would you like to register?"
@@ -405,7 +412,7 @@ export const stsConfig: StsConfig = {
                 ✓ "Your National ID is Five two two two three three."
 
                 EXAMPLES OF BAD RESPONSES (AVOID):
-                ✗ "I'll convert your ID to the proper format N022233"
+                ✗ "I'll convert your ID to the proper format N122233"
                 ✗ "The system requires IDs to be in a specific format"
 
                 FILLER PHRASES:
@@ -418,10 +425,15 @@ export const stsConfig: StsConfig = {
                 - Adding filler phrases before or after function calls
 
                 Correct pattern to follow:
-                1. When you need to look up information:
-                  - First call agent_filler with message_type="lookup"
+                1. When user says the national ID check the format:
+                  - If the national ID do not have 6 digits, you must ask the user to provide the correct national ID.
+                  - Never add prefix or suffix numbers to the national ID.
+                2. When you need to look up information:
+                  - Verify the national ID format is correct, that is confirm there is six digits.
+                  - Never add prefix or suffix numbers or zeros to the national ID. 
+                  - If the national ID is in correct format, call agent_filler with message_type="lookup"
                   - Immediately follow with the relevant lookup function (find_farmer etc.)
-                2. Only speak again after you have the actual information to share
+                3. Only speak again after you have the actual information to share
 
                 Remember: ANY phrase indicating you're about to look something up MUST be done through the agent_filler function, never through direct response text.   `,
       functions: functionDefinition,
