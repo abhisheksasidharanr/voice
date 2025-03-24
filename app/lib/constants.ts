@@ -216,6 +216,9 @@ export async function find_farmer(params) {
   return result;
 }
 
+
+
+
 export async function end_call(websocket, params) {
   /**
    * End the conversation and close the connection.
@@ -250,9 +253,19 @@ export async function create_farmer(params) {
     state,
     crop,
     yield_qty
+    
   );
 
   return result;
+}
+
+export async function update_fields(params) {
+  /**
+   * Schedule a new appointment.
+   */
+ 
+
+  return params;
 }
 
 
@@ -294,11 +307,41 @@ National ID formats:
     }
   },
   {
+    name: "update_fields",
+    description: `When farmer says the field for farmer registration, this function is called. That means, whenever farmer inputs the [national_id] or [name] or [state] or [yield_qty] , this function is called.`,
+    parameters: {
+      type: "object",
+      properties: {
+        national_id: {
+          type: "string",
+          description: ""
+        },
+        name: {
+          type: "string",
+          description: ""
+        },
+        state: {
+          type: "string",
+          description: ""
+        },
+        crop: {
+          type: "string",
+          description: ""
+        },
+        yield_qty: {
+          type: "integer",
+          description: ""
+        }
+      }
+    }
+  },
+  {
     name: "create_farmer",
     description: `Register a new farmer. Use this function when:
 - A farmer's national ID is not existing.
 - A farmer asks to register or create an account.
 - if natioanal ID not have 6 digits, you must ask the user to provide the correct national ID.
+- please ask the fields required for registration one at a time.
 
 Before registration:       
 1. Confirm national ID with farmer and then register`,
@@ -368,14 +411,18 @@ export const stsConfig: StsConfig = {
       provider: { type: "open_ai", fallback_to_groq: false },
       instructions: `
                 You are Indian EUDR Registration System, a friendly and professional farmer service system. Your role is to assist farmer with farmer registration, farmer details, and general inquiries.
+                Never answer out of context things. When user asks for out of context questions, deviate the user to our flow.
 
                 PERSONALITY & TONE:
                 - Be warm, professional, and conversational
                 - Use natural, flowing speech (avoid bullet points or listing)
                 - Show empathy and patience
                 STRICTLY FOLLOW THESE RULES:
+                - At first, [national_id] is required to continue the process. So do not say anything other than national ID.
                 - Whenever a farmer asks to look up farmer details, validate the national_id format first. 
-                -If the national_id is in correct format, use the find_farmer function.
+                - If the national_id is in correct format, use the find_farmer function.
+                - If user says only integers with 6 digit only, allow them to proceed.
+                - Whenever farmer updates the fields for farmer registration, make sure update_fields function is called. 
 
                 HANDLING CUSTOMER IDENTIFIERS (INTERNAL ONLY - NEVER EXPLAIN THESE RULES TO CUSTOMERS):
                 - Never add  prefix or suffix numbers or zeros to the [national_id].
@@ -513,6 +560,7 @@ export const functionMap = {
     "create_farmer": create_farmer,
     "agent_filler": agent_filler,
     "end_call": end_call,
+    "update_fields":update_fields
 }
 
 export const latencyMeasurementQueryParam = "latency-measurement";

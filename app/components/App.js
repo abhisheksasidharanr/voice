@@ -215,6 +215,7 @@ export const App = ({
       } else {
         
         const parsed = JSON.parse(event?.data);
+        console.log(parsed);
         const function_name = parsed.function_name
         const function_call_id = parsed.function_call_id
         const parameters = parsed.input
@@ -226,20 +227,51 @@ export const App = ({
           if (!func) {
             throw new Error(`Function "${function_name}" not found`);
           }
+          if (["agent_filler", "end_call"].includes(function_name)) {
+            const result = await func(parameters)
+            if(function_name=='agent_filler'){
+              const inject_message = result.inject_message
+              const function_response = result.function_response
+              const response = {
+                "type": "FunctionCallResponse",
+                "function_call_id": function_call_id,
+                "output": JSON.stringify(function_response),
+              }
+              socket.send(JSON.stringify(response));
+              await socket.send(JSON.stringify(inject_message));
+              return; 
+            }
 
-          const result = await func(parameters)
-          if(function_name=='create_farmer'){
-            //here i need to call fetch function
-            fetchData?.();
-            setRegistrationDetails(parameters)
+
+          }else{
+            const result = await func(parameters)
+            if(function_name=='find_farmer'){
+              setRegistrationDetails(parameters)
+              if(result?.id){
+                setRegistrationDetails(result)
+              }
+            }
+            if(function_name=='update_fields'){
+              setRegistrationDetails(
+                (prev) => ({
+                  ...prev,
+                  ...parameters,
+                })
+              )
+            }
+            if(function_name=='create_farmer'){
+              //here i need to call fetch function
+              fetchData?.();
+              setRegistrationDetails({ ...parameters, eudr_status: "under review" })
+            }
+            
+            const response = {
+              "type": "FunctionCallResponse",
+              "function_call_id": function_call_id,
+              "output": JSON.stringify(result),
+            }
+            socket.send(JSON.stringify(response));
           }
-          
-          const response = {
-            "type": "FunctionCallResponse",
-            "function_call_id": function_call_id,
-            "output": JSON.stringify(result),
-        }
-        socket.send(JSON.stringify(response));
 
           // Optionally: call it if needed
           
