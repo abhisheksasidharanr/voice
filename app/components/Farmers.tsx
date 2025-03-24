@@ -72,7 +72,7 @@ function Farmers({ farmerlist, fetchData }) {
 
               {/* Actions */}
               <div className="ml-auto space-y-2">
-              {(farmer.eudr_status.toLowerCase()=='fail' || farmer.eudr_status.toLowerCase()=='Under review') && (
+              {(farmer.eudr_status.toLowerCase()=='fail' || farmer.eudr_status.toLowerCase()=='under review') && (
                 <div>                
                     <button onClick={() => handleStatusUpdate(farmer.national_id, 'pass')}
                      className="w-full bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-1 rounded-md">
